@@ -29,6 +29,6 @@ use pocketmine\plugin\PluginBase;
 final class RedstoneMechanics extends PluginBase{
 
 	protected function onEnable() : void{
-		$this->getServer()->getPluginManager()->registerEvents(new EventListener(), $this);
+		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
 	}
 }
