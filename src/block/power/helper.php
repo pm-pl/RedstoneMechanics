@@ -32,6 +32,7 @@ use pocketmine\block\Block;
 use pocketmine\block\Lever;
 use pocketmine\block\RedstoneWire;
 use pocketmine\math\Facing;
+use pocketmine\world\World;
 
 class BlockRedstonePowerHelper implements IBlockRedstoneHelper{
 
@@ -69,17 +70,22 @@ class BlockRedstonePowerHelper implements IBlockRedstoneHelper{
 		}
 	}
 
-	public static function activate(Block $block, bool $activate) : void{
+	public static function activate(Block $block, bool $activate, array &$visitedBlocks = []) : void{
 		$pos = $block->getPosition();
 		$world = $pos->getWorld();
+
+		$hash = World::blockHash($pos->x, $pos->y, $pos->z);
+		if(isset($visitedBlocks[$hash])){
+			return;
+		}
+
 		if(BlockRedstoneUtils::isPoweredByRedstone($block)){
 			/** @var Block&\pocketmine\block\utils\PoweredByRedstoneTrait $block */
 			$ev = new BlockRedstonePowerEvent($block, $activate);
 			$ev->call();
-			if($activate !== $ev->getPowered()){
-				$block->setPowered($ev->getPowered());
-				$world->setBlock($pos, $block);
-			}
+
+			$block->setPowered($ev->getPowered());
+			$world->setBlock($pos, $block);
 		}
 	}
 }
