@@ -30,6 +30,7 @@ use nicholass003\redstonemechanics\block\utils\BlockRedstoneUtils;
 use pocketmine\block\Block;
 use pocketmine\block\RedstoneWire;
 use pocketmine\math\Facing;
+use pocketmine\world\World;
 use function max;
 
 class BlockRedstoneTransmissionHelper implements IBlockRedstoneHelper{
@@ -41,33 +42,49 @@ class BlockRedstoneTransmissionHelper implements IBlockRedstoneHelper{
 		}
 	}
 
-	public static function transmite(Block $block, int $power, array &$visitedBlocks = []) : void {
-		if($power <= 0){
-			return;
-		}
-
+	public static function transmite(Block $block, int $power, array &$visitedBlocks = []) : void{
 		$pos = $block->getPosition();
 		$world = $pos->getWorld();
 
-		$positionKey = $block->getPosition()->__toString();
-		if(isset($visitedBlocks[$positionKey])){
+		$hash = World::blockHash($pos->x, $pos->y, $pos->z);
+		if(isset($visitedBlocks[$hash])){
 			return;
 		}
 
-		$visitedBlocks[$positionKey] = true;
+		$visitedBlocks[$hash] = true;
 
 		if($block instanceof RedstoneWire){
-			$block->setOutputSignalStrength($power);
-			$world->setBlock($pos, $block);
+			if($block->getOutputSignalStrength() !== $power){
+				$block->setOutputSignalStrength($power);
+				$world->setBlock($pos, $block);
+			}
 		}
 
 		$_power = max($power - 1, 0);
+		$neighbors = [];
+
 		foreach(Facing::ALL as $face){
 			$_block = $block->getSide($face);
 			if($_block instanceof RedstoneWire){
-				static::transmite($_block, $_power, $visitedBlocks);
+				$neighbors[] = $_block;
 			}elseif(BlockRedstoneUtils::isPoweredByRedstone($_block)){
 				BlockRedstonePowerHelper::activate($_block, $_power > 0);
+			}
+		}
+
+		foreach([1, -1] as $yOffset){
+			foreach([Facing::NORTH, Facing::SOUTH, Facing::EAST, Facing::WEST] as $horizontal){
+				$neighborPos = $pos->getSide($horizontal)->add(0, $yOffset, 0);
+				$diagonalBlock = $world->getBlock($neighborPos);
+				if($diagonalBlock instanceof RedstoneWire){
+					$neighbors[] = $diagonalBlock;
+				}
+			}
+		}
+
+		foreach($neighbors as $neighbor){
+			if(!isset($visitedBlocks[World::blockHash($neighbor->getPosition()->x, $neighbor->getPosition()->y, $neighbor->getPosition()->z)])){
+				static::transmite($neighbor, $_power, $visitedBlocks);
 			}
 		}
 	}
